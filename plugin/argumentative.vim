@@ -7,9 +7,11 @@ let s:pairs = {}
 let s:pairs['('] = ')'
 let s:pairs['{'] = '}'
 let s:pairs['['] = ']'
+let s:pairs['<'] = '>'
 let s:pairs[')'] = '('
 let s:pairs['}'] = '{'
 let s:pairs[']'] = '['
+let s:pairs['>'] = '<'
 
 " ArgMotion
 " Move to the next boundry. Takes nesting into account.
@@ -19,7 +21,7 @@ function! s:ArgMotion(direction)
   let direction = a:direction ? '' : 'b'
   let s:stack = []
   if s:is_implicit_function_call()
-    let [l, start] = searchpos('\m\k[?!]\=\s\+\%("\|-\d\|\k\|[({([]]\)', 'nb', line('.'))
+    let [l, start] = searchpos('\m\k[?!]\=\s\+\%("\|-\d\|\k\|[<({([]]\)', 'nb', line('.'))
     if &ft =~ '\m\<\%(ruby\|eruby\)\>'
       let [l, end] = searchpos('\m\%(\S\s\+\<do\>\|%>\|$\)', 'n', line('.'))
     elseif &ft =~ '\<coffee\>' && match(getline(line('.')), '\m\S\s\+->$') > -1
@@ -31,9 +33,9 @@ function! s:ArgMotion(direction)
         let s:stack = [c]
       endif
     endif
-    call searchpair('\%(\%' . (start+1) . 'c\|[({[]\)', ',', '\%(\%' . end . 'c\|[]})]\)', direction . 'W', "s:skip(" . a:direction . ", " . (start+1) . ", " . end . ")", line('.'))
+    call searchpair('\%(\%' . (start+1) . 'c\|[<({[]\)', ',', '\%(\%' . end . 'c\|[]})>]\)', direction . 'W', "s:skip(" . a:direction . ", " . (start+1) . ", " . end . ")", line('.'))
   else
-    call searchpair('[({[]', ',', '[]})]', direction . 'W', "s:skip(" . a:direction . ")")
+    call searchpair('[<({[]', ',', '[]})>]', direction . 'W', "s:skip(" . a:direction . ")")
   endif
 endfunction
 
@@ -63,7 +65,7 @@ function! s:skip(direction, ...)
 endfunction
 
 function! s:is_implicit_function_call()
-  return &ft =~ '\m\<\%(ruby\|eruby\|coffee\)\>' && getline(line('.')) =~ '\m\k[?!]\=\s\+\%("\|-\d\|\k\+\>[?!]\=\s*\%([(\.]\)\@!\|[({[]]\)'
+  return &ft =~ '\m\<\%(ruby\|eruby\|coffee\)\>' && getline(line('.')) =~ '\m\k[?!]\=\s\+\%("\|-\d\|\k\+\>[?!]\=\s*\%([(\.]\)\@!\|[<({[]]\)'
 endfunction
 
 function! s:get_pair(c)
@@ -71,7 +73,7 @@ function! s:get_pair(c)
 endfunction
 
 function! s:is_open(c, direction)
-  return a:direction ? a:c =~ '[({[]' : a:c =~ '[])}]'
+  return a:direction ? a:c =~ '[<({[]' : a:c =~ '[]>)}]'
 endfunction
 
 function! s:MoveLeft()
@@ -208,17 +210,17 @@ function! s:OuterTextObject()
     let ce = s:getchar()
     let end = getpos('.')
   endif
-  if cs =~ '[{([]' || (cs == ',' && ce !~ '[])}]')
+  if cs =~ '[{(<[]' || (cs == ',' && ce !~ '[]>)}]')
     call setpos('.', start)
     call search('\_.', 'W')
     let start = getpos('.')
   endif
-  if ce =~ '[])}]' && !(s:is_implicit_function_call() && end[2] == col('$')-1)
+  if ce =~ '[])}>]' && !(s:is_implicit_function_call() && end[2] == col('$')-1)
     call setpos('.', end)
     call search('.', 'bW')
     let end = getpos('.')
   endif
-  if cs =~ '[{([]' && ce =~ ','
+  if cs =~ '[{(<[]' && ce =~ ','
     call setpos('.', end)
     call search(',\%(\_s\{-}\n\ze\s*\|\s\+\ze\)\S', 'ceW')
     let end = getpos('.')
